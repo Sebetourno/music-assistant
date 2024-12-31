@@ -1,19 +1,17 @@
-# Music Assistant
+# Music Assistant API
 
-This is a simple music recommendation assistant that uses OpenAI, Spotify, and YouTube APIs to suggest music based on user prompts.
+Une API Python qui utilise OpenAI, Spotify et YouTube pour fournir des informations et des recommandations musicales. 
+
+## Fonctionnalités
+- Interroger GPT d'OpenAI pour des réponses liées à la musique.
+- Rechercher des morceaux sur Spotify.
+- Rechercher des vidéos YouTube liées à la musique.
 
 ## Installation
 
-1. Clone this repository.
-2. Install the dependencies by running `pip install -r requirements.txt`.
-3. Create a `.env` file and add your API keys for OpenAI, Spotify, and YouTube.
+1. Clonez ce dépôt.
+2. Créez un fichier `.env` et ajoutez vos clés API.
+3. Installez les dépendances avec :
 
-## Usage
-
-Run `python app.py` to start the Flask server.
-
-## APIs
-
-- **OpenAI**: Used to generate music recommendations.
-- **Spotify**: Used to search for songs based on recommendations.
-- **YouTube**: Can be used to link to video content.
+   ```bash
+   pip install -r requirements.txt
