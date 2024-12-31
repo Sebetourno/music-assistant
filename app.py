@@ -1,64 +1,52 @@
-import openai
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, render_template
+import openai
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-from googleapiclient.discovery import build
+import requests
 
-# Charger les variables d'environnement
-from dotenv import load_dotenv
-load_dotenv()
-
-# Clés API
-openai.api_key = os.getenv("OPENAI_API_KEY")
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-# Initialisation de Flask
 app = Flask(__name__)
 
-# Initialisation de Spotify
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
+# Chargement des clés API depuis les variables d'environnement
+openai.api_key = os.getenv('OPENAI_API_KEY')
+spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID')
+spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+youtube_api_key = os.getenv('YOUTUBE_API_KEY')
 
-# Initialisation de YouTube API
-youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+# Configuration de Spotify
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=spotify_client_id, client_secret=spotify_client_secret))
 
-# Route principale
-@app.route("/")
+@app.route('/')
 def home():
-    return "🎵 Music Assistant API is Running!"
+    return "Music Assistant is running!"
 
-# Route pour interagir avec OpenAI GPT
-@app.route("/ask", methods=["POST"])
-def ask_openai():
-    question = request.json.get("question")
+@app.route('/ask', methods=['GET', 'POST'])
+def ask():
+    if request.method == 'POST':
+        user_query = request.form['query']
+        # Appel à OpenAI pour obtenir une réponse
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=user_query,
+            max_tokens=150
+        )
+        return response.choices[0].text.strip()
+    return render_template('index.html')
 
-    # Interroger OpenAI GPT
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=question,
-        max_tokens=100
-    )
-    
-    return jsonify({"answer": response.choices[0].text.strip()})
+@app.route('/spotify')
+def spotify():
+    # Exemple de recherche sur Spotify
+    results = sp.search(q='Daft Punk', limit=1)
+    return results['tracks']['items'][0]['name']
 
-# Route pour obtenir des playlists Spotify
-@app.route("/spotify", methods=["GET"])
-def get_spotify_playlists():
-    track = request.args.get("track")
-    results = sp.search(q=track, limit=5, type="track")
-    tracks = [{"name": track["name"], "artist": track["artists"][0]["name"]} for track in results["tracks"]["items"]]
-    return jsonify({"tracks": tracks})
-
-# Route pour obtenir des vidéos YouTube
-@app.route("/youtube", methods=["GET"])
-def get_youtube_videos():
-    query = request.args.get("query")
-    request = youtube.search().list(q=query, part="snippet", type="video", maxResults=5)
-    response = request.execute()
-    videos = [{"title": item["snippet"]["title"], "url": f"https://www.youtube.com/watch?v={item['id']['videoId']}"} for item in response["items"]]
-    return jsonify({"videos": videos})
+@app.route('/youtube')
+def youtube():
+    # Exemple d'utilisation de l'API YouTube
+    query = 'Daft Punk'
+    youtube_url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&key={youtube_api_key}"
+    response = requests.get(youtube_url)
+    video_data = response.json()
+    return video_data['items'][0]['snippet']['title']
 
 if __name__ == "__main__":
     app.run(debug=True)
