@@ -1,98 +1,46 @@
 import os
-from dotenv import load_dotenv
 import openai
-import requests
-from flask import Flask, request, jsonify
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+from googleapiclient.discovery import build
 
-# Charger les variables d'environnement
-load_dotenv()
+# Charger les clés API à partir des variables d'environnement
+openai.api_key = os.getenv("OPENAI_API_KEY")
+spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
+spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 
-# Récupérer les clés API depuis le fichier .env
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+# Fonction pour interroger l'API OpenAI
+def query_openai(prompt):
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=prompt,
+        max_tokens=100
+    )
+    return response.choices[0].text.strip()
 
-# Vérifier si les clés sont correctement chargées
-if not all([OPENAI_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, YOUTUBE_API_KEY]):
-    raise ValueError("❌ Une ou plusieurs clés API manquent. Vérifiez votre fichier .env.")
+# Fonction pour rechercher des vidéos YouTube
+def search_youtube(query):
+    youtube = build("youtube", "v3", developerKey=youtube_api_key)
+    request = youtube.search().list(q=query, part="snippet", maxResults=5)
+    response = request.execute()
+    return [item['snippet']['title'] for item in response['items']]
 
-# Configuration de l'API OpenAI
-openai.api_key = OPENAI_API_KEY
+# Fonction pour rechercher des morceaux sur Spotify
+def search_spotify(query):
+    sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id=spotify_client_id, client_secret=spotify_client_secret))
+    results = sp.search(q=query, limit=5)
+    return [track['name'] for track in results['tracks']['items']]
 
-# Initialisation de l'application Flask
-app = Flask(__name__)
+# Exemple de prompt pour OpenAI
+prompt = "Recommande-moi des morceaux de musique à la manière d'Imagine Dragons."
+gpt_response = query_openai(prompt)
 
-### 🎵 ROUTE POUR SPOTIFY ###
-@app.route('/spotify', methods=['GET'])
-def spotify_search():
-    query = request.args.get('query', 'Imagine Dragons')
-    token_url = 'https://accounts.spotify.com/api/token'
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    data = {
-        'grant_type': 'client_credentials',
-        'client_id': SPOTIFY_CLIENT_ID,
-        'client_secret': SPOTIFY_CLIENT_SECRET
-    }
+# Recherche sur YouTube et Spotify
+youtube_results = search_youtube("Imagine Dragons music")
+spotify_results = search_spotify("Imagine Dragons")
 
-    # Obtenir un token Spotify
-    response = requests.post(token_url, headers=headers, data=data)
-    access_token = response.json().get('access_token')
-
-    if not access_token:
-        return jsonify({"error": "❌ Impossible d'obtenir le token Spotify"}), 500
-
-    search_url = f'https://api.spotify.com/v1/search?q={query}&type=track'
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-
-    response = requests.get(search_url, headers=headers)
-    tracks = response.json().get('tracks', {}).get('items', [])
-
-    return jsonify(tracks)
-
-### 📺 ROUTE POUR YOUTUBE ###
-@app.route('/youtube', methods=['GET'])
-def youtube_search():
-    query = request.args.get('query', 'Imagine Dragons')
-    search_url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&key={YOUTUBE_API_KEY}'
-
-    response = requests.get(search_url)
-    videos = response.json().get('items', [])
-
-    return jsonify(videos)
-
-### 🤖 ROUTE POUR OPENAI ###
-@app.route('/chat', methods=['POST'])
-def openai_chat():
-    data = request.get_json()
-    user_input = data.get('message', '')
-
-    if not user_input:
-        return jsonify({"error": "❌ Aucun message fourni"}), 400
-
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a music assistant."},
-                {"role": "user", "content": user_input}
-            ]
-        )
-        reply = response.choices[0].message['content']
-        return jsonify({"reply": reply})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-### 🏠 ROUTE D'ACCUEIL ###
-@app.route('/')
-def home():
-    return "<h1>🎵 Music Assistant API is Running!</h1>"
-
-### 🚀 LANCEMENT DE L'APPLICATION ###
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+# Afficher les résultats
+print(f"OpenAI: {gpt_response}")
+print(f"YouTube: {youtube_results}")
+print(f"Spotify: {spotify_results}")
