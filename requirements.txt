@@ -1,5 +1,5 @@
-openai
-spotipy
-requests
-flask
-python-dotenv
+Flask==2.2.2
+openai==0.27.0
+spotipy==2.19.0
+google-api-python-client==2.45.0
+python-dotenv==0.21.1
