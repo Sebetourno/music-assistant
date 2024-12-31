@@ -1,3 +1,6 @@
+# Fichiers sensibles
 .env
+
+# Caches Python
 __pycache__
 *.pyc
