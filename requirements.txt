@@ -1,3 +1,0 @@
-openai
-spotipy
-google-api-python-client
